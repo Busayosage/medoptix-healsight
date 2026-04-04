@@ -27,14 +27,17 @@ Thumbs.db
 
 # Database
 *.db
+database/
 
 # Model artifacts
 *.pkl
+model/artifacts/
 
-# Large/generated data
-outputs/data/
+# Generated outputs
+outputs/
+
+# Data
+data/
+
+# Optional local artifacts
 artifacts/
-
-# Optional: ignore raw/processed data if you do not want to upload datasets
-# data/
-# outputs/
