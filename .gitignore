@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# VS Code
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Environment files
+.env
+
+# Database
+*.db
+
+# Model artifacts
+*.pkl
+
+# Large/generated data
+outputs/data/
+artifacts/
+
+# Optional: ignore raw/processed data if you do not want to upload datasets
+# data/
+# outputs/
