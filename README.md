@@ -1,147 +1,160 @@
-# Medoptix Healsight – Hospital Operations Analytics & Forecasting
+# 🏥 MedOptix HealSight – Hospital Admissions Forecasting System
 
-## 📌 Project Overview
+## 🚀 Overview
 
-This project analyses hospital operational data (admissions, occupancy, staffing, and flow) to identify trends and build predictive insights for better decision-making.
+MedOptix HealSight is an end-to-end healthcare analytics system designed to predict hospital admissions using machine learning and time series forecasting.
 
-The goal is to simulate a real-world healthcare analytics pipeline:
+It simulates a real-world hospital operations environment by combining:
 
-* Data ingestion
-* SQL database storage
-* Data validation
-* Feature engineering
-* Forecast modelling
-* Visualization
+- Data engineering  
+- Forecast modelling (SARIMAX + Machine Learning)  
+- API deployment (FastAPI)  
+- Interactive dashboard (Streamlit)  
+- Containerisation (Docker)  
 
 ---
 
-## 🗂️ Project Structure
+## 🎯 Business Problem
+
+Hospitals face ongoing challenges in:
+
+- Managing patient flow efficiently  
+- Allocating staff and resources  
+- Reducing patient wait times  
+- Planning for demand spikes  
+
+This project predicts future hospital admissions to support **data-driven operational decision-making and resource planning**.
+
+---
+
+## 🧠 Solution
+
+The system:
+
+1. Processes historical hospital data  
+2. Builds predictive models (SARIMAX + Random Forest)  
+3. Exposes predictions via a FastAPI endpoint  
+4. Visualises insights through an interactive dashboard  
+5. Runs fully in Docker for reproducibility  
+
+---
+
+## 🏗️ Architecture
+
+```
+User (Dashboard)
+   ↓
+Streamlit Dashboard (Port 8501)
+   ↓
+FastAPI Service (Port 8000)
+   ↓
+ML Model (SARIMAX + Feature Inputs)
+```
+
+---
+
+## 🛠️ Tech Stack
+
+- Python  
+- Pandas / NumPy  
+- Statsmodels (SARIMAX)  
+- Scikit-learn  
+- FastAPI  
+- Streamlit  
+- Docker & Docker Compose  
+
+---
+
+## 📊 Features
+
+- 📈 30-day hospital admission forecasting  
+- ⚙️ Adjustable operational parameters (capacity, staffing, wait time)  
+- 🚦 Admission risk classification (Low / Medium / High)  
+- 📉 Time series trend visualisation  
+- 🔌 REST API for real-time predictions  
+
+---
+
+## 📸 Dashboard Preview
+
+![Dashboard](images/dashboard_view.png)
+
+---
+
+## 🧪 API Example
+
+**POST `/predict`**
+
+```json
+{
+  "capacity": 40,
+  "staffing_index": 1.0,
+  "avg_wait_time": 200
+}
+```
+
+---
+
+## 🐳 Run with Docker
+
+```bash
+docker compose up --build
+```
+
+Then open:
+
+- Dashboard → http://localhost:8501  
+- API Docs → http://localhost:8000/docs  
+
+---
+
+## 📂 Project Structure
 
 ```
 medoptix-healsight/
 │
-├── data/raw/                # Raw source CSV files
-├── database/               # Database connection logic
-├── outputs/figures/        # Saved charts and visuals
-├── src/                    # Core pipeline scripts
-│   ├── extract_data.py
-│   ├── run_sql_checks.py
-│   ├── build_dataset.py
-│   ├── train_model.py
-│
-├── medoptix.db             # SQLite database
+├── app.py                  # FastAPI app
+├── dashboard.py            # Streamlit dashboard
+├── docker-compose.yml
+├── Dockerfile.api
+├── Dockerfile.dashboard
 ├── requirements.txt
-├── README.md
-└── .gitignore
+│
+├── model/
+│   ├── inference.py
+│   └── train_model.py
+│
+├── notebooks/
+│   └── 02_eda.ipynb
+│
+├── images/                 # Dashboard screenshots
+│
+└── README.md
 ```
 
 ---
 
-## ⚙️ Pipeline Stages
+## 📌 Key Insight
 
-### 1. Data Extraction
-
-**File:** `src/extract_data.py`
-
-* Reads raw CSV files
-* Loads data into SQLite database
+This forecast reflects seasonal hospital demand patterns and recent admission trends, enabling better planning of hospital capacity and staffing levels.
 
 ---
 
-### 2. Data Validation (SQL Checks)
+## 👨‍💻 Author
 
-**File:** `src/run_sql_checks.py`
+Built as part of a real-world analytics portfolio demonstrating:
 
-* Row counts
-* Date ranges
-* Duplicate detection
-* Table structure validation
-
----
-
-### 3. Dataset Preparation
-
-**File:** `src/build_dataset.py`
-
-* Converts date columns
-* Sorts time series data
-* Creates features:
-
-  * Lag features (7, 14 days)
-  * Rolling averages
-* Generates and saves plots
+- End-to-end data pipeline design  
+- Time series forecasting & machine learning  
+- API development and deployment  
+- Interactive dashboard integration  
 
 ---
 
-### 4. Model Training
+## 🚀 Next Steps
 
-**File:** `src/train_model.py`
-
-* Loads processed dataset
-* Trains predictive model
-* Outputs evaluation (MAE)
+- Extend model with external factors (weather, holidays)  
+- Deploy to cloud (AWS / Azure)  
+- Add real-time data ingestion  
 
 ---
-
-## ✅ Current Progress
-
-* [x] Project structure created
-* [x] Raw data loaded
-* [x] SQLite database connected
-* [x] SQL validation checks completed
-* [x] Dataset built and cleaned
-* [x] Feature engineering implemented
-* [x] First visualization created and saved
-* [x] First model trained
-
----
-
-## 🚧 Next Steps (towards 80%)
-
-* [ ] Add multiple visualisations (admissions, overflow, wait times)
-* [ ] Generate business insights
-* [ ] Identify busiest hospitals/wards
-* [ ] Export clean dataset for dashboarding
-* [ ] Improve model performance
-* [ ] Write full project explanation
-
----
-
-## 📊 Outputs
-
-* Occupancy trend plot (Hospital 1 – ED Ward)
-* Model evaluation (MAE)
-
----
-
-## 🧠 Skills Demonstrated
-
-* Python (Pandas, NumPy)
-* SQL (SQLite)
-* Data cleaning & validation
-* Feature engineering
-* Time-series preparation
-* Data visualisation (Matplotlib)
-* Predictive modelling
-
----
-
-## 🎯 Project Goal (Portfolio Angle)
-
-This project demonstrates how raw operational healthcare data can be transformed into:
-
-* actionable insights
-* forecasting tools
-* decision-support analytics
-
----
-
-## 🔜 Final Target
-
-A complete analytics project with:
-
-* clean data pipeline
-* strong visuals
-* business insights
-* forecasting model
-* dashboard-ready dataset
