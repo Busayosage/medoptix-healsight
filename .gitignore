@@ -1,43 +1,73 @@
-# Python
+# =========================
+# PYTHON CACHE
+# =========================
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+*$py.class
 
-# Virtual environments
+# =========================
+# VIRTUAL ENVIRONMENTS
+# =========================
+.env
 .venv/
 venv/
 env/
 
-# Jupyter
+# =========================
+# JUPYTER
+# =========================
 .ipynb_checkpoints/
 
-# VS Code
+# =========================
+# EDITOR / IDE
+# =========================
 .vscode/
+.idea/
 
-# OS files
+# =========================
+# OS FILES
+# =========================
 .DS_Store
 Thumbs.db
 
-# Logs
+# =========================
+# LOGS
+# =========================
 *.log
 
-# Environment files
-.env
+# =========================
+# MLFLOW TRACKING
+# =========================
+mlruns/
 
-# Database
+# =========================
+# DATABASE FILES (LOCAL ONLY)
+# =========================
 *.db
-database/
+*.sqlite
+*.sqlite3
 
-# Model artifacts
-*.pkl
-model/artifacts/
-
-# Generated outputs
+# =========================
+# TEMP / OUTPUT FILES
+# =========================
 outputs/
+*.tmp
+*.temp
 
-# Data
-data/
+# =========================
+# DOCKER OVERRIDES
+# =========================
+docker-compose.override.yml
 
-# Optional local artifacts
-artifacts/
+# =========================
+# TEST / COVERAGE
+# =========================
+.pytest_cache/
+.coverage
+htmlcov/
+
+# =========================
+# STREAMLIT SECRETS
+# =========================
+.streamlit/secrets.toml
+forecast_plot.png

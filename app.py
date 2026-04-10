@@ -1,32 +1,25 @@
-import joblib
-import pandas as pd
 from fastapi import FastAPI
-
-# Load model and features
-model = joblib.load("model/artifacts/admissions_forecast_model.pkl")
-
-with open("model/artifacts/feature_columns.txt") as f:
-    expected_features = [line.strip() for line in f]
+from model.inference import generate_sarimax_forecast
 
 app = FastAPI()
 
 
 @app.get("/")
 def home():
-    return {"message": "Hospital Admissions Forecast API"}
+    return {"message": "Hospital Admissions API is running"}
 
 
 @app.post("/predict")
 def predict(data: dict):
-    df = pd.DataFrame([data])
 
-    # Ensure all features exist
-    for col in expected_features:
-        if col not in df.columns:
-            df[col] = 0
+    # Generate SARIMAX forecast
+    future_forecast = generate_sarimax_forecast(n_steps=30)
 
-    df = df[expected_features]
+    # Use first forecast value as prediction
+    prediction = future_forecast[0]
 
-    pred = model.predict(df)[0]
-
-    return {"predicted_admissions": float(pred)}
+    return {
+        "prediction": float(round(prediction, 2)),
+        "predicted_admissions": float(round(prediction, 2)),
+        "future_forecast": future_forecast
+    }

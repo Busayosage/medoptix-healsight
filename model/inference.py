@@ -1,128 +1,188 @@
 import os
-import joblib
-import numpy as np
 import pandas as pd
+import joblib
+from statsmodels.tsa.statespace.sarimax import SARIMAX
 
-# -------------------------------
-# Load model and feature schema
-# -------------------------------
-model_path = "model/artifacts/admissions_forecast_model.pkl"
-features_path = "model/artifacts/feature_columns.txt"
-data_path = "data/processed/final_dataset_clean.csv"
+# ================================
+# PATH SETUP
+# ================================
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-model = joblib.load(model_path)
-print(f"Loaded model from: {model_path}")
+DATA_PATH = os.path.join(BASE_DIR, "../data/processed/final_dataset_clean.csv")
+MODEL_PATH = os.path.join(BASE_DIR, "artifacts/admissions_forecast_model.pkl")
+FEATURES_PATH = os.path.join(BASE_DIR, "artifacts/feature_columns.txt")
 
-with open(features_path, "r", encoding="utf-8") as f:
+# ================================
+# LOAD RANDOM FOREST MODEL + FEATURES
+# ================================
+rf_model = joblib.load(MODEL_PATH)
+
+with open(FEATURES_PATH, "r", encoding="utf-8") as f:
     expected_features = [line.strip() for line in f if line.strip()]
 
-print(f"Loaded feature schema from: {features_path}")
-print(f"Expected feature count: {len(expected_features)}")
+print(f"Loaded model from: {MODEL_PATH}")
+print(f"Loaded {len(expected_features)} features")
 
-# -------------------------------
-# Load processed dataset
-# -------------------------------
-processed_df = pd.read_csv(data_path)
-print(f"Loaded processed dataset from: {data_path}")
-print(f"Dataset shape: {processed_df.shape}")
+# ================================
+# GLOBAL SARIMAX CACHE
+# ================================
+sarimax_fitted_model = None
+sarimax_training_series = None
 
-# -------------------------------
-# Prepare date features
-# -------------------------------
-if "date" in processed_df.columns:
-    processed_df["date"] = pd.to_datetime(processed_df["date"])
-    processed_df["year"] = processed_df["date"].dt.year
-    processed_df["month"] = processed_df["date"].dt.month
-    processed_df["day"] = processed_df["date"].dt.day
-    processed_df["day_of_week"] = processed_df["date"].dt.dayofweek
-else:
-    raise ValueError("The dataset must contain a 'date' column for inference.")
+# ================================
+# DATA PREPARATION
+# ================================
+def prepare_inference_data():
+    df = pd.read_csv(DATA_PATH)
+    print(f"Loaded dataset: {df.shape}")
 
-# -------------------------------
-# One-hot encode ward_code
-# -------------------------------
-if "ward_code" in processed_df.columns:
-    ward_dummies = pd.get_dummies(processed_df["ward_code"], prefix="ward_code")
-    processed_df = pd.concat([processed_df, ward_dummies], axis=1)
+    if "date" not in df.columns:
+        raise ValueError("Missing 'date' column in processed dataset.")
 
-# -------------------------------
-# Create lag features
-# -------------------------------
-processed_df = processed_df.sort_values(by=["hospital_id", "date"])
+    df["date"] = pd.to_datetime(df["date"])
 
-processed_df["admissions_lag_1"] = processed_df.groupby("hospital_id")["admissions"].shift(1)
-processed_df["admissions_lag_2"] = processed_df.groupby("hospital_id")["admissions"].shift(2)
-processed_df["admissions_lag_3"] = processed_df.groupby("hospital_id")["admissions"].shift(3)
+    # Time features
+    df["year"] = df["date"].dt.year
+    df["month"] = df["date"].dt.month
+    df["day"] = df["date"].dt.day
+    df["day_of_week"] = df["date"].dt.dayofweek
 
-processed_df["admissions_rolling_mean_3"] = (
-    processed_df.groupby("hospital_id")["admissions"]
-    .rolling(window=3)
-    .mean()
-    .reset_index(level=0, drop=True)
-)
+    if "week_of_year" not in df.columns:
+        df["week_of_year"] = df["date"].dt.isocalendar().week.astype(int)
 
-# Drop rows with NaNs caused by lagging
-processed_df = processed_df.dropna().reset_index(drop=True)
+    if "is_weekend" not in df.columns:
+        df["is_weekend"] = (df["day_of_week"] >= 5).astype(int)
 
-# -------------------------------
-# Align inference features
-# -------------------------------
-for col in expected_features:
-    if col not in processed_df.columns:
-        processed_df[col] = 0
+    if "date_diff_1_days" not in df.columns:
+        df["date_diff_1_days"] = 1
 
-aligned_df = processed_df[expected_features].copy()
-print(f"Aligned feature shape: {aligned_df.shape}")
+    sort_cols = ["date"]
+    if "hospital_id" in df.columns:
+        sort_cols = ["hospital_id", "date"]
 
-# -------------------------------
-# Predict full dataset
-# -------------------------------
-predictions = model.predict(aligned_df)
+    df = df.sort_values(by=sort_cols).reset_index(drop=True)
 
-output_df = pd.DataFrame({
-    "predicted_admissions": predictions
-})
+    # Lag features
+    if "hospital_id" in df.columns:
+        grp = df.groupby("hospital_id")["admissions"]
+        df["admissions_lag_1"] = grp.shift(1)
+        df["admissions_lag_2"] = grp.shift(2)
+        df["admissions_lag_3"] = grp.shift(3)
+        df["admissions_rolling_mean_3"] = (
+            grp.rolling(window=3)
+            .mean()
+            .reset_index(level=0, drop=True)
+        )
+    else:
+        df["admissions_lag_1"] = df["admissions"].shift(1)
+        df["admissions_lag_2"] = df["admissions"].shift(2)
+        df["admissions_lag_3"] = df["admissions"].shift(3)
+        df["admissions_rolling_mean_3"] = df["admissions"].rolling(window=3).mean()
 
-output_dir = "outputs/data"
-os.makedirs(output_dir, exist_ok=True)
+    df = df.dropna().reset_index(drop=True)
+    return df
 
-predictions_path = os.path.join(output_dir, "predictions.csv")
-output_df.to_csv(predictions_path, index=False)
+# ================================
+# FEATURE ALIGNMENT FOR RF
+# ================================
+def align_features(df):
+    df_encoded = pd.get_dummies(df)
 
-print(f"Predictions saved to: {predictions_path}")
-print(output_df.head())
+    for col in expected_features:
+        if col not in df_encoded.columns:
+            df_encoded[col] = 0
 
-# -------------------------------
-# Future forecast (next step)
-# -------------------------------
-next_input = pd.DataFrame([aligned_df.iloc[-1].copy()])
-next_prediction = model.predict(next_input)[0]
+    df_encoded = df_encoded[expected_features]
+    return df_encoded
 
-print("\n--- FUTURE FORECAST (NEXT STEP) ---")
-print(f"Next predicted admissions: {next_prediction:.2f}")
+# ================================
+# CURRENT PREDICTION USING RANDOM FOREST
+# ================================
+def predict_from_inputs(capacity, staffing, wait_time):
+    df = prepare_inference_data()
+    last_row = df.iloc[-1].copy()
 
-# -------------------------------
-# Multi-step recursive forecast
-# -------------------------------
-print("\n--- MULTI-STEP FORECAST (NEXT 7 STEPS) ---")
+    if "effective_capacity" in last_row.index:
+        last_row["effective_capacity"] = capacity
 
-n_steps = 7
+    if "staffing_index" in last_row.index:
+        last_row["staffing_index"] = staffing
 
-last_row = aligned_df.iloc[-1].copy()
-history = list(processed_df["admissions"].tail(3))
+    if "avg_wait_minutes" in last_row.index:
+        last_row["avg_wait_minutes"] = wait_time
 
-future_preds = []
+    if "avg_wait_time" in last_row.index:
+        last_row["avg_wait_time"] = wait_time
 
-for step in range(n_steps):
-    last_row["admissions_lag_1"] = history[-1]
-    last_row["admissions_lag_2"] = history[-2]
-    last_row["admissions_lag_3"] = history[-3]
-    last_row["admissions_rolling_mean_3"] = np.mean(history[-3:])
+    input_df = pd.DataFrame([last_row])
+    aligned_input = align_features(input_df)
 
-    input_df = pd.DataFrame([last_row])[expected_features]
+    pred = rf_model.predict(aligned_input)[0]
+    return float(pred)
 
-    pred = model.predict(input_df)[0]
-    future_preds.append(pred)
-    history.append(pred)
+# ================================
+# BUILD DAILY SERIES FOR SARIMAX
+# ================================
+def build_sarimax_series():
+    df = prepare_inference_data()
 
-    print(f"Step {step + 1}: {pred:.2f}")
+    # Use one hospital only for cleaner time-series signal
+    if "hospital_id" in df.columns:
+        first_hospital = df["hospital_id"].iloc[0]
+        df_hospital = df[df["hospital_id"] == first_hospital].copy()
+    else:
+        df_hospital = df.copy()
+
+    # Aggregate to one value per day
+    daily_series = (
+        df_hospital
+        .groupby("date")["admissions"]
+        .sum()
+        .sort_index()
+        .asfreq("D")
+        .interpolate()
+    )
+
+    print("SARIMAX series head:")
+    print(daily_series.head())
+    print("SARIMAX series describe:")
+    print(daily_series.describe())
+
+    return daily_series
+
+# ================================
+# SARIMAX FORECAST
+# ================================
+def generate_sarimax_forecast(n_steps=30):
+    global sarimax_fitted_model
+    global sarimax_training_series
+
+    try:
+        daily_series = build_sarimax_series()
+
+        # Train once, then reuse
+        if sarimax_fitted_model is None:
+            print("Training SARIMAX model (one-time)...")
+
+            sarimax_model = SARIMAX(
+                daily_series,
+                order=(1, 0, 1),
+                seasonal_order=(1, 1, 1, 7),
+                enforce_stationarity=False,
+                enforce_invertibility=False
+            )
+
+            sarimax_fitted_model = sarimax_model.fit(disp=False)
+            sarimax_training_series = daily_series.copy()
+            print("SARIMAX model trained successfully.")
+
+        forecast = sarimax_fitted_model.forecast(steps=n_steps)
+        forecast_values = [float(round(x, 2)) for x in forecast]
+
+        print("SARIMAX Forecast:", forecast_values)
+
+        return forecast_values
+
+    except Exception as e:
+        print("❌ SARIMAX ERROR:", str(e))
+        raise e

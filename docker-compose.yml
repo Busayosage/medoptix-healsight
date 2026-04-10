@@ -1,13 +1,14 @@
 version: "3.9"
 
 services:
-
   api:
     build:
       context: .
       dockerfile: Dockerfile.api
     ports:
       - "8000:8000"
+    volumes:
+      - .:/app   # 🔥 THIS IS THE FIX
 
   dashboard:
     build:
@@ -15,5 +16,7 @@ services:
       dockerfile: Dockerfile.dashboard
     ports:
       - "8501:8501"
+    volumes:
+      - .:/app   # 🔥 THIS IS THE FIX
     depends_on:
       - api

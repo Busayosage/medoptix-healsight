@@ -1,48 +1,63 @@
 import os
 import joblib
-import numpy as np
 import pandas as pd
+import numpy as np
+import mlflow
+import mlflow.sklearn
+import matplotlib.pyplot as plt
 
+from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.metrics import mean_absolute_error, r2_score
 
+# -------------------------------
+# Paths
+# -------------------------------
+DATA_PATH = "data/processed/final_dataset_clean.csv"
+MODEL_OUTPUT_PATH = "model/artifacts/admissions_forecast_model.pkl"
+FEATURES_OUTPUT_PATH = "model/artifacts/feature_columns.txt"
+
+os.makedirs("model/artifacts", exist_ok=True)
 
 # -------------------------------
 # Load dataset
 # -------------------------------
-data_path = "data/processed/final_dataset_clean.csv"
-df = pd.read_csv(data_path)
-
-print(f"Loaded dataset from: {data_path}")
-print(f"Dataset shape (original): {df.shape}")
-
+df = pd.read_csv(DATA_PATH)
 
 # -------------------------------
-# Prepare date features
+# Convert date
 # -------------------------------
-if "date" in df.columns:
-    df["date"] = pd.to_datetime(df["date"])
-    df["year"] = df["date"].dt.year
-    df["month"] = df["date"].dt.month
-    df["day"] = df["date"].dt.day
-    df["day_of_week"] = df["date"].dt.dayofweek
-else:
-    raise ValueError("The dataset must contain a 'date' column for time-based forecasting.")
-
+df["date"] = pd.to_datetime(df["date"])
 
 # -------------------------------
-# One-hot encode ward_code
+# Feature engineering
 # -------------------------------
+
+# Time features
+df["year"] = df["date"].dt.year
+df["month"] = df["date"].dt.month
+df["day"] = df["date"].dt.day
+df["day_of_week"] = df["date"].dt.dayofweek
+df["week_of_year"] = df["date"].dt.isocalendar().week.astype(int)
+df["is_weekend"] = (df["day_of_week"] >= 5).astype(int)
+
+# Hospital encoding
+hospital_dummies = pd.get_dummies(df["hospital_id"], prefix="hospital")
+df = pd.concat([df, hospital_dummies], axis=1)
+
+# Ward encoding
 if "ward_code" in df.columns:
     ward_dummies = pd.get_dummies(df["ward_code"], prefix="ward_code")
     df = pd.concat([df, ward_dummies], axis=1)
 
-
 # -------------------------------
-# Create time-based features (lags)
+# Sort for time series
 # -------------------------------
 df = df.sort_values(by=["hospital_id", "date"])
 
+# -------------------------------
+# Lag features
+# -------------------------------
 df["admissions_lag_1"] = df.groupby("hospital_id")["admissions"].shift(1)
 df["admissions_lag_2"] = df.groupby("hospital_id")["admissions"].shift(2)
 df["admissions_lag_3"] = df.groupby("hospital_id")["admissions"].shift(3)
@@ -54,110 +69,116 @@ df["admissions_rolling_mean_3"] = (
     .reset_index(level=0, drop=True)
 )
 
-# Remove rows with NaN values caused by lagging
+# -------------------------------
+# Drop NA from lagging
+# -------------------------------
 df = df.dropna().reset_index(drop=True)
 
-print(f"Dataset shape (after lag features): {df.shape}")
+# -------------------------------
+# Define features
+# -------------------------------
+target = "admissions"
 
+drop_cols = ["date", "admissions", "ward_code", "hospital_id"]
+features = [col for col in df.columns if col not in drop_cols]
+
+X = df[features]
+y = df[target]
 
 # -------------------------------
-# Prepare features & target
+# Force numeric data only
 # -------------------------------
-target_column = "admissions"
-
-feature_columns = [
-    "hospital_id",
-    "base_beds",
-    "effective_capacity",
-    "staffing_index",
-    "avg_wait_minutes",
-    "day_of_week",
-    "month",
-    "year",
-    "day",
-    "ward_code_ICU",
-    "ward_code_MED",
-    "ward_code_SURG",
-    "admissions_lag_1",
-    "admissions_lag_2",
-    "admissions_lag_3",
-    "admissions_rolling_mean_3"
-]
-
-# Keep only columns that actually exist
-available_feature_columns = [col for col in feature_columns if col in df.columns]
-
-if target_column not in df.columns:
-    raise ValueError(f"Missing required target column: {target_column}")
-
-if not available_feature_columns:
-    raise ValueError("No valid feature columns found in dataset.")
-
-X = df[available_feature_columns].copy()
-y = df[target_column].copy()
-
-print(f"Using features: {available_feature_columns}")
-
+X = pd.get_dummies(X)
+X = X.apply(pd.to_numeric, errors="coerce")
+X = X.fillna(0)
 
 # -------------------------------
-# Time-based split
+# Train/test split
 # -------------------------------
-split_index = int(len(df) * 0.8)
-
-X_train = X.iloc[:split_index]
-X_test = X.iloc[split_index:]
-y_train = y.iloc[:split_index]
-y_test = y.iloc[split_index:]
-
-print(f"Train size: {X_train.shape}")
-print(f"Test size: {X_test.shape}")
-
-
-# -------------------------------
-# Train model
-# -------------------------------
-model = RandomForestRegressor(
-    n_estimators=200,
-    max_depth=10,
-    random_state=42,
-    n_jobs=-1
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, shuffle=False
 )
 
-model.fit(X_train, y_train)
-
-
 # -------------------------------
-# Evaluate model
+# MLflow setup
 # -------------------------------
-y_pred = model.predict(X_test)
+mlflow.set_experiment("Hospital Admissions Forecasting")
 
-mae = mean_absolute_error(y_test, y_pred)
-mse = mean_squared_error(y_test, y_pred)
-rmse = np.sqrt(mse)
-r2 = r2_score(y_test, y_pred)
+n_estimators = 200
+max_depth = 10
+random_state = 42
 
-print("\nModel Evaluation Results (Time-Based Split)")
-print("------------------------------------------")
-print(f"MAE:  {mae:.4f}")
-print(f"MSE:  {mse:.4f}")
-print(f"RMSE: {rmse:.4f}")
-print(f"R2:   {r2:.4f}")
+with mlflow.start_run(run_name="RandomForest Admissions Model"):
+    # -------------------------------
+    # Model
+    # -------------------------------
+    model = RandomForestRegressor(
+        n_estimators=n_estimators,
+        max_depth=max_depth,
+        random_state=random_state
+    )
 
+    model.fit(X_train, y_train)
 
-# -------------------------------
-# Save model artifacts
-# -------------------------------
-artifacts_dir = "model/artifacts"
-os.makedirs(artifacts_dir, exist_ok=True)
+    # -------------------------------
+    # Evaluation
+    # -------------------------------
+    y_pred = model.predict(X_test)
 
-model_path = os.path.join(artifacts_dir, "admissions_forecast_model.pkl")
-features_path = os.path.join(artifacts_dir, "feature_columns.txt")
+    mae = mean_absolute_error(y_test, y_pred)
+    r2 = r2_score(y_test, y_pred)
 
-joblib.dump(model, model_path)
+    print("\n--- MODEL PERFORMANCE ---")
+    print(f"MAE: {mae:.4f}")
+    print(f"R2 Score: {r2:.4f}")
 
-with open(features_path, "w", encoding="utf-8") as f:
-    for col in available_feature_columns:
-        f.write(f"{col}\n")
+    # -------------------------------
+    # Save model
+    # -------------------------------
+    joblib.dump(model, MODEL_OUTPUT_PATH)
+    print(f"Model saved to: {MODEL_OUTPUT_PATH}")
 
-print(f"\nModel saved to: {model_path}")
-print(f"Feature schema saved to: {features_path}")
+    # -------------------------------
+    # Save feature list
+    # -------------------------------
+    with open(FEATURES_OUTPUT_PATH, "w") as f:
+        for col in X.columns:
+            f.write(col + "\n")
+
+    print(f"Feature list saved to: {FEATURES_OUTPUT_PATH}")
+    print(f"Total features: {len(X.columns)}")
+
+    # -------------------------------
+    # Log to MLflow
+    # -------------------------------
+    mlflow.log_param("model_type", "RandomForestRegressor")
+    mlflow.log_param("n_estimators", n_estimators)
+    mlflow.log_param("max_depth", max_depth)
+    mlflow.log_param("random_state", random_state)
+    mlflow.log_param("feature_count", len(X.columns))
+    mlflow.log_param("train_rows", len(X_train))
+    mlflow.log_param("test_rows", len(X_test))
+
+    mlflow.log_metric("MAE", mae)
+    mlflow.log_metric("R2_Score", r2)
+
+    mlflow.sklearn.log_model(model, name="random_forest_model")
+    mlflow.log_artifact(FEATURES_OUTPUT_PATH)
+
+    # -------------------------------
+    # Plot predictions vs actual
+    # -------------------------------
+    plt.figure(figsize=(10, 5))
+    plt.plot(y_test.values, label="Actual")
+    plt.plot(y_pred, label="Predicted")
+    plt.title("Model Predictions vs Actual")
+    plt.xlabel("Time")
+    plt.ylabel("Admissions")
+    plt.legend()
+
+    plot_path = "forecast_plot.png"
+    plt.savefig(plot_path)
+    mlflow.log_artifact(plot_path)
+    plt.close()
+
+    print("MLflow logging complete.")
