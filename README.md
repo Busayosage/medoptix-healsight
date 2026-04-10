@@ -77,8 +77,15 @@ ML Model (SARIMAX + Feature Inputs)
 
 ## 📸 Dashboard Preview
 
-![Dashboard](images/dashboard_view.png)
+![Dashboard Preview](images/dashboard_view.png)
 
+## 🔌 API Preview
+
+![API Preview](images/api_connection.png)
+
+## 🐳 Docker Preview
+
+![Docker Preview](images/docker.png)
 ---
 
 ## 🧪 API Example
