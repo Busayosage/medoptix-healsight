@@ -1,177 +1,91 @@
-# 🏥 MedOptix HealSight – Hospital Admissions Forecasting System
+# MedOptix HealSight – Hospital Admissions Forecasting System
 
-## 🚀 Overview
+## Short Overview
+MedOptix HealSight is an end ‑to‑end healthcare analytics platform that predicts hospital admissions for the next 30 days. It combines time‑series forecasting with machine learning and exposes the results through an API and an interactive dashboard.
 
-MedOptix HealSight is an end-to-end healthcare analytics system designed to predict hospital admissions using machine learning and time series forecasting.
+## Business Problem
+Hospitals need to forecast admissions to manage capacity, staffing and resources efficiently. Without reliable predictions, they risk long wait times, resource bottlenecks and under‑ or over‑staffing.
 
-It simulates a real-world hospital operations environment by combining:
+## Solution / Project Purpose
+The project addresses these challenges by:
+- Processing historical admissions data to uncover trends and seasonality.
+- Building predictive models (SARIMAX and Random Forest) to forecast future admissions.
+- Exposing predictions via a FastAPI endpoint.
+- Visualising insights in a Streamlit dashboard so non‑technical users can explore scenarios.
+- Packaging everything in Docker for reproducibility and easy deployment.
 
-- Data engineering  
-- Forecast modelling (SARIMAX + Machine Learning)  
-- API deployment (FastAPI)  
-- Interactive dashboard (Streamlit)  
-- Containerisation (Docker)  
+## Key Features
+- 30‑day hospital admission forecasts with confidence intervals.
+- Adjustable parameters (e.g. capacity, staffing levels, wait times) to test different scenarios.
+- Risk classification of admission levels (Low, Medium or High).
+- Interactive time‑series visualisations.
+- REST API for real‑time predictions.
 
----
+## Tools and Technologies
+- Python with Pandas, NumPy, Statsmodels (SARIMAX) and Scikit‑learn.
+- FastAPI for the prediction service.
+- Streamlit for the dashboard.
+- Docker and Docker Compose for containerisation.
 
-## 🎯 Business Problem
+## Workflow / Method
+1. **Data engineering:** clean and aggregate historical hospital data.
+2. **Model building:** train SARIMAX and Random Forest models on the prepared data.
+3. **API deployment:** serve the models through a FastAPI endpoint.
+4. **Dashboard development:** build a Streamlit app to explore forecasts and adjust parameters.
+5. **Containerisation:** bundle the API and dashboard in Docker for consistent deployment.
 
-Hospitals face ongoing challenges in:
+## Key Insights or Outcomes
+The forecasts show clear seasonal demand patterns and recent trends in hospital admissions. Decision‑makers can use these insights to plan capacity and staffing more effectively.
 
-- Managing patient flow efficiently  
-- Allocating staff and resources  
-- Reducing patient wait times  
-- Planning for demand spikes  
+## Business or Practical Impact
+By predicting upcoming admission levels and highlighting potential resource constraints, the system supports data‑driven operational planning. Hospitals can align staffing and capacity to anticipated demand, reducing wait times and improving patient care.
 
-This project predicts future hospital admissions to support **data-driven operational decision-making and resource planning**.
-
----
-
-## 🧠 Solution
-
-The system:
-
-1. Processes historical hospital data  
-2. Builds predictive models (SARIMAX + Random Forest)  
-3. Exposes predictions via a FastAPI endpoint  
-4. Visualises insights through an interactive dashboard  
-5. Runs fully in Docker for reproducibility  
-
----
-
-## 🏗️ Architecture
-
-```
-User (Dashboard)
-   ↓
-Streamlit Dashboard (Port 8501)
-   ↓
-FastAPI Service (Port 8000)
-   ↓
-ML Model (SARIMAX + Feature Inputs)
-```
-
----
-
-## 🛠️ Tech Stack
-
-- Python  
-- Pandas / NumPy  
-- Statsmodels (SARIMAX)  
-- Scikit-learn  
-- FastAPI  
-- Streamlit  
-- Docker & Docker Compose  
-
----
-
-## 📊 Features
-
-- 📈 30-day hospital admission forecasting  
-- ⚙️ Adjustable operational parameters (capacity, staffing, wait time)  
-- 🚦 Admission risk classification (Low / Medium / High)  
-- 📉 Time series trend visualisation  
-- 🔌 REST API for real-time predictions  
-
----
-
-## 📸 Dashboard Preview
-
+## Visual Outputs
+### Dashboard Preview
 <p align="center">
   <img src="images/dashboard_view2.png" width="900"/>
 </p>
 
----
-
-## 🔌 API Preview
-
+### API Preview
 <p align="center">
   <img src="images/api_connection.png" width="900"/>
 </p>
 
----
-
-## 🐳 Docker Deployment
-
+### Docker Deployment
 <p align="center">
   <img src="images/docker.png" width="900"/>
 </p>
----
 
-## 🧪 API Example
-
-**POST `/predict`**
-
-```json
-{
-  "capacity": 40,
-  "staffing_index": 1.0,
-  "avg_wait_time": 200
-}
+## Project Structure
+```
+medoptix-healsight/
+├── app.py                 # FastAPI app
+├── dashboard.py           # Streamlit dashboard
+├── docker-compose.yml
+├── Dockerfile.api
+├── Dockerfile.dashboard
+├── requirements.txt
+├── model/
+│   ├── inference.py
+│   └── train_model.py
+├── notebooks/
+│   └── 02_eda.ipynb
+├── images/                # Dashboard screenshots
+└── README.md
 ```
 
----
-
-## 🐳 Run with Docker
+## How to Run or View
+To start the API and dashboard locally using Docker:
 
 ```bash
 docker compose up --build
 ```
 
-Then open:
+Then open in your browser:
+- Dashboard – http://localhost:8501  
+- API docs – http://localhost:8000/docs
 
-- Dashboard → http://localhost:8501  
-- API Docs → http://localhost:8000/docs  
-
----
-
-## 📂 Project Structure
-
-```
-medoptix-healsight/
-│
-├── app.py                  # FastAPI app
-├── dashboard.py            # Streamlit dashboard
-├── docker-compose.yml
-├── Dockerfile.api
-├── Dockerfile.dashboard
-├── requirements.txt
-│
-├── model/
-│   ├── inference.py
-│   └── train_model.py
-│
-├── notebooks/
-│   └── 02_eda.ipynb
-│
-├── images/                 # Dashboard screenshots
-│
-└── README.md
-```
-
----
-
-## 📌 Key Insight
-
-This forecast reflects seasonal hospital demand patterns and recent admission trends, enabling better planning of hospital capacity and staffing levels.
-
----
-
-## 👨‍💻 Author
-
-Built as part of a real-world analytics portfolio demonstrating:
-
-- End-to-end data pipeline design  
-- Time series forecasting & machine learning  
-- API development and deployment  
-- Interactive dashboard integration  
-
----
-
-## 🚀 Next Steps
-
-- Extend model with external factors (weather, holidays)  
-- Deploy to cloud (AWS / Azure)  
-- Add real-time data ingestion  
-
----
+## Future Improvements
+- Incorporate external factors (e.g. weather, holidays) into the forecasts.
+- Deploy to cloud platforms such as AWS or Azure.
+- Add support for ingesting new data in real time.
